@@ -10,5 +10,6 @@ Debian nginx build system is quite intricate, and this solution is ugly and lazi
 
 ```bash
 docker build . -t build-nginx
-docker run -it -v ~/nginx-packages:/opt build-nginx
+# --rm: do not leave the container hanging in system
+docker run --rm -it -v ~/nginx-packages:/opt build-nginx
 ```
