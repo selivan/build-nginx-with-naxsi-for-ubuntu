@@ -8,5 +8,7 @@ Debian nginx build system is quite intricate, and this solution is ugly and lazi
 
 ## Usage
 
+```bash
 docker build . -t build-nginx
 docker run -it -v ~/nginx-packages:/opt build-nginx
+```
