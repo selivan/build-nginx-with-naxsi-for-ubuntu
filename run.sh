@@ -66,6 +66,8 @@ echo -n "nginx (${NGINX_BUILD_VERSION}) ${VERSION_CODENAME}; urgency=medium\n\
 mv changelog changelog.old && \
 cat changelog.new changelog.old > changelog
 
+cd ..
+
 dpkg-buildpackage -us -uc -b 2>&1 | tee /opt/dpkg-buildpackage.log
 if [ ${PIPESTATUS[0]} -eq 0 ]; then
     mv -v ../*.deb /opt
