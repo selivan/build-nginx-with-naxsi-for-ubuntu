@@ -19,7 +19,7 @@ RUN apt update && \
     apt install --yes curl
 
 # DEBUG
-RUN apt install --yes mc vim tmux less
+#RUN apt install --yes mc vim tmux less
 
 # # download sources
 # RUN cd /root && \
