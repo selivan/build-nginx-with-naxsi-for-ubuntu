@@ -9,7 +9,7 @@ Debian nginx build system is quite intricate, and this solution is ugly and lazi
 ## Usage
 
 ```bash
-docker build . -t build-nginx
+docker build . -t build-nginx --build-arg BASE_IMAGE="ubuntu:xenial" --build-arg NAXSI_VERSION="0.56" --build-arg NGINX_BUILD_VERSION="101.16"
 # --rm: do not leave the container hanging in system
 docker run --rm -it -v ~/nginx-packages:/opt build-nginx
 ```
