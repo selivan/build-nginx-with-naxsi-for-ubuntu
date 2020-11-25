@@ -70,8 +70,8 @@ echo "load_module modules/ngx_http_naxsi_module.so;" > libnginx-mod.conf/mod-htt
 
 cat <<EOF > modules/watch/http-naxsi
 version=4
-opts="dversionmangle=s/v//,filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%libnginx-mod-http-echo-$1.tar.gz%" \
-    https://github.com/nbs-system/naxsi/tags \
+opts="dversionmangle=s/v//,filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%libnginx-mod-http-naxsi-$1.tar.gz%"
+    https://github.com/nbs-system/naxsi/tags
     (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian debian/ngxmod uupdate http-naxsi
 EOF
 
@@ -92,16 +92,18 @@ cat << EOF > libnginx-mod-http-naxsi.nginx
 use File::Basename;
 
 # Guess module name
-$module = basename($0, '.nginx');
-$module =~ s/^libnginx-mod-//;
+\$module = basename(\$0, '.nginx');
+\$module =~ s/^libnginx-mod-//;
 
-$modulepath = $module;
-$modulepath =~ s/-/_/g;
+\$modulepath = \$module;
+\$modulepath =~ s/-/_/g;
 
-print "mod debian/build-extras/objs/ngx_${modulepath}_module.so\n";
-print "mod debian/libnginx-mod.conf/mod-${module}.conf\n";
+print "mod debian/build-extras/objs/ngx_\${modulepath}_module.so\n";
+print "mod debian/libnginx-mod.conf/mod-\${module}.conf\n";
 
 EOF
+
+chmod a+x libnginx-mod-http-naxsi.nginx
 
 cd ..
 
