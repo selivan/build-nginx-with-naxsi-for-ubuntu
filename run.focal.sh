@@ -5,6 +5,7 @@
 cd /root
 
 set -x
+
 apt source nginx
 nginx_src=$(readlink -f $(find . -type d -name 'nginx-*' | head -1))
 
@@ -14,30 +15,6 @@ mv naxsi-${NAXSI_VERSION} http-naxsi && \
 cp -r http-naxsi ${nginx_src}/debian/modules/
 
 cd ${nginx_src}/debian
-
-cat control | \
-sed '/Package: nginx-doc/,/^$/d' | \
-sed '/Package: nginx-full/,/^$/d' | \
-sed '/Package: nginx-extras/,/^$/d' | \
-sed '/Package: libnginx-mod-http-image-filter/,/^$/d' | \
-sed '/Package: libnginx-mod-http-xslt-filter/,/^$/d' | \
-sed '/Package: libnginx-mod-mail/,/^$/d' | \
-sed '/Package: libnginx-mod-stream/,/^$/d' | \
-sed '/Package: libnginx-mod-http-perl/,/^$/d' | \
-sed '/Package: libnginx-mod-http-auth-pam/,/^$/d' | \
-sed '/Package: libnginx-mod-http-lua/,/^$/d' | \
-sed '/Package: libnginx-mod-http-ndk/,/^$/d' | \
-sed '/Package: libnginx-mod-nchan/,/^$/d' | \
-sed '/Package: libnginx-mod-http-upstream-fair/,/^$/d' | \
-sed '/Package: libnginx-mod-http-cache-purge/,/^$/d' | \
-sed '/Package: libnginx-mod-http-fancyindex/,/^$/d' | \
-sed '/Package: libnginx-mod-http-uploadprogress/,/^$/d' | \
-sed '/Package: libnginx-mod-http-subs-filter/,/^$/d' | \
-sed '/Package: libnginx-mod-http-dav-ext/,/^$/d' | \
-sed '/Package: libnginx-mod-rtmp/,/^$/d' | \
-cat > control.new
-mv control control.bak
-mv control.new control
 
 echo -e -n "\nPackage: libnginx-mod-http-naxsi\n\
 Architecture: any\n\
