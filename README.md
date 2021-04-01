@@ -7,12 +7,7 @@ It uses nginx packages from [Ubuntu nginx ppa](https://launchpad.net/~nginx/+arc
 Debian nginx build system is quite intricate, and this solution is ugly and lazily made, but it works and produces Debian-like Nginx packages with Naxsi support.
 
 ## Usage
-
-You may create symlink if you want to use code below or you could just rename files:
-```
-ln -s run.focal.sh run.sh
-ln -s Dockerfile.focal Dockerfile
-```
+Files for different os-releases should have names like run.**<os-codename>**.sh
 
 ```bash
 BASE_IMAGE="ubuntu:xenial"
@@ -22,6 +17,13 @@ docker build . -t build-nginx --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg N
 mkdir ~/nginx-packages
 # --rm: do not leave the container hanging in system
 docker run --rm -it -v ~/nginx-packages:/opt build-nginx
-# OR to use with file:
+```
+
+Or you can build container with Dockerfile. For that you should to edit codename for your ubuntu release in `Dockerfile`:
+
+```bash
+ARG BASE_IMAGE="ubuntu:xenial"
+# and then:
 docker build . -t build-nginx -f Dockerfile
+docker run --rm -it -v ~/nginx-packages:/opt build-nginx
 ```

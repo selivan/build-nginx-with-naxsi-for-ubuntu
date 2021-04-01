@@ -1,4 +1,4 @@
-ARG BASE_IMAGE="ubuntu:xenial"
+ARG BASE_IMAGE="ubuntu:focal"
 
 FROM ${BASE_IMAGE}
 
@@ -23,7 +23,7 @@ RUN apt update && \
 
 VOLUME [ "/opt" ]
 
-ADD run.sh /root/run.sh
+COPY run*sh /root/
 RUN chmod a+x /root/run.sh && \
     echo "NAXSI_VERSION=${NAXSI_VERSION}" >> /root/run-cfg.sh && \
     echo "NGINX_BUILD_VERSION=${NGINX_BUILD_VERSION}" >> /root/run-cfg.sh
