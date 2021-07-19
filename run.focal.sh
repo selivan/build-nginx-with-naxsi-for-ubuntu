@@ -21,17 +21,18 @@ Architecture: any\n\
 Depends: \${misc:Depends}, \${shlibs:Depends}\n\
 Description: WAF Naxsi\n" >> control
 
+cp rules rules.bak
+
+# All lines between common_configure_flags and %:
 cat rules | \
-perl -pe 's/DYN_MODS := \\\n/DYN_MODS := \\\n\thttp-naxsi \\\n/s' | \
-perl -pe 's/--with-http_dav_module \\\n//s' | \
-perl -pe 's/--without-http_geo_module \\\n//s' | \
-perl -pe 's/--without-http_limit_req_module \\\n//s' | \
-perl -pe 's/--without-http_limit_conn_module \\\n//s' | \
-perl -pe 's/--add-dynamic-module=\$\(MODULESDIR\)\/http-echo\\*/--with-http_geoip_module=dynamic \\\n--add-dynamic-module=\$\(MODULESDIR\)\/http-echo \\\n--add-dynamic-module=\$\(MODULESDIR\)\/http-headers-more-filter \\\n--add-dynamic-module=\$\(MODULESDIR\)\/http-naxsi\/naxsi_src/s' | \
-perl -pe 's/full_configure_flags.*\n *\n/full_configure_flags := \$\(common_configure_flags\)/s' | \
-cat > rules.new
-mv rules rules.bak
-mv rules.new rules
+sed '/^common_configure_flags/,/%:/s/.*/#REPLACE/g' | \
+sed '0,/#REPLACE/s//#NEW/' | \
+sed 's/#REPLACE//' > rules.new
+
+cat rules.new | grep -B 10000 '^#NEW' > rules.new.1
+cat rules.new | grep -A 10000 '^#NEW' > rules.new.2
+
+cat rules.new.1 /root/configure_flags.txt rules.new.2 > rules
 
 . /etc/os-release && \
 echo -ne "nginx (${NGINX_BUILD_VERSION}+naxsi${NAXSI_VERSION}) ${VERSION_CODENAME}; urgency=medium\n\
@@ -52,9 +53,8 @@ opts="dversionmangle=s/v//,filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%libngi
     (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian debian/ngxmod uupdate http-naxsi
 EOF
 
-#./debian/modules/control:Module: http-echo
-
-cat << EOF > modules/control
+#cat << EOF > modules/control
+cat << EOF >> modules/control
 
 Module: naxsi
 Homepage: https://github.com/nbs-system/naxsi
