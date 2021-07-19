@@ -4,7 +4,6 @@ FROM ${BASE_IMAGE}
 
 ARG NGINX_PPA="ppa:ondrej/nginx"
 ARG NAXSI_VERSION="1.3"
-ARG NGINX_BUILD_VERSION="101.20.1"
 
 LABEL description="Image to build Ubuntu packages of Nginx with Naxsi WAF"
 LABEL maintainer="Pavel Selivanov(https://github.com/selivan)"
@@ -25,9 +24,9 @@ VOLUME [ "/opt" ]
 
 COPY run*sh /root/
 COPY configure_flags.txt /root/
+COPY control /root/
 RUN chmod a+x /root/run.sh && \
-    echo "NAXSI_VERSION=${NAXSI_VERSION}" >> /root/run-cfg.sh && \
-    echo "NGINX_BUILD_VERSION=${NGINX_BUILD_VERSION}" >> /root/run-cfg.sh
+    echo "NAXSI_VERSION=${NAXSI_VERSION}" >> /root/run-cfg.sh
 
 WORKDIR /root
 ENTRYPOINT ["/root/run.sh"]

@@ -6,6 +6,9 @@ cd /root
 
 set -x
 
+NGINX_ORIG_VERSION=$(apt-cache policy nginx | grep -A1 'Version table' | grep -v 'Version table' | tr -s ' ' | cut -d' ' -f2 | cut -d'+' -f1)
+NGINX_BUILD_VERSION="10$NGINX_ORIG_VERSION"
+
 apt source nginx
 nginx_src=$(readlink -f $(find . -type d -name 'nginx-*' | head -1))
 
@@ -16,24 +19,47 @@ cp -r http-naxsi ${nginx_src}/debian/modules/
 
 cd ${nginx_src}/debian
 
-echo -e -n "\nPackage: libnginx-mod-http-naxsi\n\
-Architecture: any\n\
-Depends: \${misc:Depends}, \${shlibs:Depends}\n\
-Description: WAF Naxsi\n" >> control
+cp control control.bak
+cp /root/control control
 
 cp rules rules.bak
 
-# All lines between common_configure_flags and %:
-cat rules | \
-sed '/^common_configure_flags/,/%:/s/.*/#REPLACE/g' | \
-sed '0,/#REPLACE/s//#NEW/' | \
-sed 's/#REPLACE//' > rules.new
+# Set FLAVOURS
+sed -i 's/^FLAVOURS.*/FLAVOURS := light/' rules
 
-cat rules.new | grep -B 10000 '^#NEW' > rules.new.1
-cat rules.new | grep -A 10000 '^#NEW' > rules.new.2
+# Set DYN_MODS
+sed -i '/^DYN_MODS/,/^MODULESDIR/s/.*/#REPLACE/g' rules
+sed -i '0,/#REPLACE/s//#NEW/' rules
+sed -i 's/#REPLACE//' rules
+
+cat rules | grep -B 10000 '^#NEW' | grep -v '^#NEW' > rules.new.1
+cat rules | grep -A 10000 '^#NEW' | grep -v '^#NEW' > rules.new.2
+
+cat rules.new.1 > rules
+cat >> rules <<EOF
+DYN_MODS := \\
+        http-naxsi \\
+        http-echo \\
+        http-geoip2 \\
+        http-headers-more-filter \\
+        stream \\
+        stream-geoip2
+
+MODULESDIR = \$(CURDIR)/debian/modules
+EOF
+cat rules.new.2 >> rules
+
+# All lines between common_configure_flags and %:
+sed -i '/^common_configure_flags/,/%:/s/.*/#REPLACE/g' rules
+sed -i '0,/#REPLACE/s//#NEW/' rules
+sed -i 's/#REPLACE//' rules
+
+cat rules | grep -B 10000 '^#NEW' | grep -v '^#NEW' > rules.new.1
+cat rules | grep -A 10000 '^#NEW' | grep -v '^#NEW' > rules.new.2
 
 cat rules.new.1 /root/configure_flags.txt rules.new.2 > rules
 
+# Add version to changelog
 . /etc/os-release && \
 echo -ne "nginx (${NGINX_BUILD_VERSION}+naxsi${NAXSI_VERSION}) ${VERSION_CODENAME}; urgency=medium\n\
 \n\
@@ -46,14 +72,14 @@ cat changelog.new changelog.old > changelog
 
 echo "load_module modules/ngx_http_naxsi_module.so;" > libnginx-mod.conf/mod-http-naxsi.conf
 
-cat <<EOF > modules/watch/http-naxsi
+cat << EOF > modules/watch/http-naxsi
 version=4
 opts="dversionmangle=s/v//,filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%libnginx-mod-http-naxsi-$1.tar.gz%"
     https://github.com/nbs-system/naxsi/tags
     (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian debian/ngxmod uupdate http-naxsi
 EOF
 
-#cat << EOF > modules/control
+# Add naxsi to modules/control
 cat << EOF >> modules/control
 
 Module: naxsi
@@ -63,6 +89,7 @@ Version: ${NAXSI_VERSION}
 
 EOF
 
+# Magic
 cat << EOF > libnginx-mod-http-naxsi.nginx
 #!/usr/bin/perl -w
 
@@ -84,10 +111,10 @@ chmod a+x libnginx-mod-http-naxsi.nginx
 
 cd ..
 
-dpkg-buildpackage -us -uc -b 2>&1 | tee /opt/dpkg-buildpackage.log
-if [ ${PIPESTATUS[0]} -eq 0 ]; then
-    mv -v ../*.deb /opt
-    echo "OK: build successful. Get packages in /opt volume"
-else
-    echo "ERROR: build failed. Get build logs in /opt volume"
-fi
+# dpkg-buildpackage -us -uc -b 2>&1 | tee /opt/dpkg-buildpackage.log
+# if [ ${PIPESTATUS[0]} -eq 0 ]; then
+#     mv -v ../*.deb /opt
+#     echo "OK: build successful. Get packages in /opt volume"
+# else
+#     echo "ERROR: build failed. Get build logs in /opt volume"
+# fi

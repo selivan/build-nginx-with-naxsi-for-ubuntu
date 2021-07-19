@@ -12,8 +12,7 @@ Files for different os-releases should have names like run.**<os-codename>**.sh
 ```bash
 BASE_IMAGE="ubuntu:xenial"
 NAXSI_VERSION="1.3"
-NGINX_BUILD_VERSION="101.18.0"
-docker build . -t build-nginx --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NAXSI_VERSION="$NAXSI_VERSION" --build-arg NGINX_BUILD_VERSION="$NGINX_BUILD_VERSION"
+docker build . -t build-nginx --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NAXSI_VERSION="$NAXSI_VERSION"
 mkdir ~/nginx-packages
 # --rm: do not leave the container hanging in system
 docker run --rm -it -v ~/nginx-packages:/opt build-nginx
