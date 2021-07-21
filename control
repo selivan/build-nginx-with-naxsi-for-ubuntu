@@ -35,13 +35,6 @@ Depends: nginx-core (<< ${source:Version}.1~) | nginx-full (<< ${source:Version}
          ${misc:Depends}
 Description: small, powerful, scalable web/proxy server
 
-Package: nginx-doc
-Architecture: all
-Multi-Arch: foreign
-Section: doc
-Depends: ${misc:Depends}
-Description: small, powerful, scalable web/proxy server - documentation
-
 Package: nginx-common
 Architecture: all
 Multi-Arch: foreign
