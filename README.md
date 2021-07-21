@@ -26,3 +26,4 @@ ARG BASE_IMAGE="ubuntu:xenial"
 docker build . -t build-nginx -f Dockerfile
 docker run --rm -it -v ~/nginx-packages:/opt build-nginx
 ```
+
