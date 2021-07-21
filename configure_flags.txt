@@ -39,6 +39,3 @@ light_configure_flags := \
                         --add-dynamic-module=$(MODULESDIR)/http-headers-more-filter \
                         --add-dynamic-module=$(MODULESDIR)/http-echo \
                         --add-dynamic-module=$(MODULESDIR)/http-naxsi/naxsi_src
-
-# DO NOT REMOVE THIS
-%:

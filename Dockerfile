@@ -17,9 +17,6 @@ RUN apt update && \
     apt build-dep --yes nginx && \
     apt install --yes curl
 
-# DEBUG
-#RUN apt install --yes mc vim tmux less
-
 VOLUME [ "/opt" ]
 
 COPY run*sh /root/

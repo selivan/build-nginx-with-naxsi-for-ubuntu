@@ -12,9 +12,9 @@ NGINX_BUILD_VERSION="10$NGINX_ORIG_VERSION"
 apt source nginx
 nginx_src=$(readlink -f $(find . -type d -name 'nginx-*' | head -1))
 
-curl -L -O https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz && \
-tar xzf ${NAXSI_VERSION}.tar.gz && \
-mv naxsi-${NAXSI_VERSION} http-naxsi && \
+curl -L -O https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz
+tar xzf ${NAXSI_VERSION}.tar.gz
+mv naxsi-${NAXSI_VERSION} http-naxsi
 cp -r http-naxsi ${nginx_src}/debian/modules/
 
 cd ${nginx_src}/debian
@@ -28,7 +28,7 @@ cp rules rules.bak
 sed -i 's/^FLAVOURS.*/FLAVOURS := light/' rules
 
 # Set DYN_MODS
-sed -i '/^DYN_MODS/,/^MODULESDIR/s/.*/#REPLACE/g' rules
+sed -i '/^DYN_MODS/,/^$/s/.*/#REPLACE/g' rules
 sed -i '0,/#REPLACE/s//#NEW/' rules
 sed -i 's/#REPLACE//' rules
 
@@ -44,13 +44,14 @@ DYN_MODS := \\
         http-headers-more-filter \\
         stream \\
         stream-geoip2
-
-MODULESDIR = \$(CURDIR)/debian/modules
 EOF
 cat rules.new.2 >> rules
 
 # All lines between common_configure_flags and %:
-sed -i '/^common_configure_flags/,/%:/s/.*/#REPLACE/g' rules
+sed -i '/^common_configure_flags/,/^$/s/.*/#REPLACE/g' rules
+sed -i '/^light_configure_flags/,/^$/s/.*/#REPLACE/g' rules
+sed -i '/^core_configure_flags/,/^$/s/.*/#REPLACE/g' rules
+sed -i '/^extras_configure_flags/,/^$/s/.*/#REPLACE/g' rules
 sed -i '0,/#REPLACE/s//#NEW/' rules
 sed -i 's/#REPLACE//' rules
 
@@ -102,19 +103,28 @@ use File::Basename;
 \$modulepath = \$module;
 \$modulepath =~ s/-/_/g;
 
-print "mod debian/build-extras/objs/ngx_\${modulepath}_module.so\n";
+print "mod debian/build-light/objs/ngx_\${modulepath}_module.so\n";
 print "mod debian/libnginx-mod.conf/mod-\${module}.conf\n";
 
 EOF
+
+# Fix all *.nginx files - we are building only nginx-light
+
+for i in *.nginx; do
+
+sed -i 's/build-extras/build-light/g' "$i"
+
+done
+
 
 chmod a+x libnginx-mod-http-naxsi.nginx
 
 cd ..
 
-# dpkg-buildpackage -us -uc -b 2>&1 | tee /opt/dpkg-buildpackage.log
-# if [ ${PIPESTATUS[0]} -eq 0 ]; then
-#     mv -v ../*.deb /opt
-#     echo "OK: build successful. Get packages in /opt volume"
-# else
-#     echo "ERROR: build failed. Get build logs in /opt volume"
-# fi
+dpkg-buildpackage -us -uc -b 2>&1 | tee /opt/dpkg-buildpackage.log
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    mv -v ../*.deb /opt
+    echo "OK: build successful. Get packages in /opt volume"
+else
+    echo "ERROR: build failed. Get build log dpkg-buildpackage.log in /opt volume"
+fi
