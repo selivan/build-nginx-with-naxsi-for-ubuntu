@@ -57,7 +57,9 @@ Description: nginx web/proxy server (basic version)
 
 Package: libnginx-mod-http-geoip2
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends},
+Depends: libmaxminddb0 (>= 1.0.2),
+         ${misc:Depends},
+         ${shlibs:Depends},
 Recommends: nginx,
 Description: GeoIP2 HTTP module for Nginx
 
@@ -69,8 +71,10 @@ Description: Stream module for Nginx
 
 Package: libnginx-mod-stream-geoip2
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends},
- libnginx-mod-stream (= ${binary:Version}),
+Depends: libmaxminddb0 (>= 1.0.2),
+         libnginx-mod-stream (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends},
 Recommends: nginx,
 Description: GeoIP2 Stream module for Nginx
 
