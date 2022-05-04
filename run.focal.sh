@@ -95,7 +95,7 @@ cat rules.new.1 /root/configure_flags.txt rules.new.2 > rules
 
 # Add version to changelog
 . /etc/os-release && \
-echo -ne "nginx (${NGINX_BUILD_VERSION}+naxsi${NAXSI_VERSION}) ${VERSION_CODENAME}; urgency=medium\n\
+echo -ne "nginx (${NGINX_BUILD_VERSION}+naxsi${NAXSI_VERSION}+ip2location${IP2LOCATION_LIB_VERSION}) ${VERSION_CODENAME}; urgency=medium\n\
 \n\
   * Custom build with WAF Naxsi\n\
 \n\
