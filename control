@@ -94,3 +94,8 @@ Package: libnginx-mod-http-naxsi
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: WAF Naxsi
+
+Package: libnginx-mod-http-ip2location
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: ip2location

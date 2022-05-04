@@ -1,10 +1,12 @@
 #!/bin/bash
 
-. /root/run-cfg.sh
+# . /root/run-cfg.sh
 
 cd /root
 
 set -x
+
+# GET NGINX SOURCE
 
 NGINX_ORIG_VERSION=$(apt-cache policy nginx | grep -A1 'Version table' | grep -v 'Version table' | tr -s ' ' | cut -d' ' -f2 | cut -d'+' -f1)
 NGINX_BUILD_VERSION="10$NGINX_ORIG_VERSION"
@@ -12,10 +14,36 @@ NGINX_BUILD_VERSION="10$NGINX_ORIG_VERSION"
 apt source nginx
 nginx_src=$(readlink -f $(find . -type d -name 'nginx-*' | head -1))
 
+# GET LIBRARIES
+
 curl -L -O https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz
 tar xzf ${NAXSI_VERSION}.tar.gz
 mv naxsi-${NAXSI_VERSION} http-naxsi
 cp -r http-naxsi ${nginx_src}/debian/modules/
+
+curl -L -O https://github.com/chrislim2888/IP2Location-C-Library/archive/refs/tags/${IP2LOCATION_LIB_VERSION}.tar.gz
+tar xzf ${IP2LOCATION_LIB_VERSION}.tar.gz
+mv IP2Location-C-Library-${IP2LOCATION_LIB_VERSION} ip2location-lib
+
+curl -L -O https://github.com/ip2location/ip2location-nginx/archive/master.tar.gz
+tar xzf master.tar.gz
+# ip2location-nginx-master
+cp -r ip2location-nginx-master ${nginx_src}/debian/modules/
+
+# BUILD IP2LOCATION LIBRARY
+
+apt install -y autoconf checkinstall
+
+cd ip2location-lib
+autoreconf -i -v --force
+# Libraries in /usr/local/lib do not load if referenced just by filename
+./configure --prefix=/usr/
+make
+checkinstall --nodoc --pkgname=libip2location --pkgversion=${IP2LOCATION_LIB_VERSION} --maintainer=root@localhost -y
+cp -f libip2location*deb /opt
+cd ..
+
+## BUILD NGINX
 
 cd ${nginx_src}/debian
 
@@ -39,11 +67,16 @@ cat rules.new.1 > rules
 cat >> rules <<EOF
 DYN_MODS := \\
         http-naxsi \\
+        http-ip2location \\
         http-echo \\
         http-geoip2 \\
         http-headers-more-filter \\
         stream \\
         stream-geoip2
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
+
 EOF
 cat rules.new.2 >> rules
 
@@ -72,6 +105,7 @@ mv changelog changelog.old && \
 cat changelog.new changelog.old > changelog
 
 echo "load_module modules/ngx_http_naxsi_module.so;" > libnginx-mod.conf/mod-http-naxsi.conf
+echo "load_module modules/ngx_http_ip2location_module.so;" > libnginx-mod.conf/mod-http-ip2location.conf
 
 cat << EOF > modules/watch/http-naxsi
 version=4
@@ -87,6 +121,15 @@ Module: naxsi
 Homepage: https://github.com/nbs-system/naxsi
 Files-Excluded: .travis.yml
 Version: ${NAXSI_VERSION}
+
+EOF
+
+cat << EOF >> modules/control
+
+Module: ip2location
+Homepage: https://github.com/ip2location/ip2location-nginx
+Files-Excluded: .travis.yml
+Version: ${IP2LOCATION_LIB_VERSION}
 
 EOF
 
@@ -108,6 +151,27 @@ print "mod debian/libnginx-mod.conf/mod-\${module}.conf\n";
 
 EOF
 
+chmod a+rx libnginx-mod-http-naxsi.nginx
+
+cat << EOF > libnginx-mod-http-ip2location.nginx
+#!/usr/bin/perl -w
+
+use File::Basename;
+
+# Guess module name
+\$module = basename(\$0, '.nginx');
+\$module =~ s/^libnginx-mod-//;
+
+\$modulepath = \$module;
+\$modulepath =~ s/-/_/g;
+
+print "mod debian/build-light/objs/ngx_\${modulepath}_module.so\n";
+print "mod debian/libnginx-mod.conf/mod-\${module}.conf\n";
+
+EOF
+
+chmod a+rx libnginx-mod-http-ip2location.nginx
+
 # Fix all *.nginx files - we are building only nginx-light
 
 for i in *.nginx; do
@@ -115,9 +179,6 @@ for i in *.nginx; do
 sed -i 's/build-extras/build-light/g' "$i"
 
 done
-
-
-chmod a+x libnginx-mod-http-naxsi.nginx
 
 cd ..
 
