@@ -2,7 +2,7 @@
 
 Dockerfile to build Ubuntu packages of [Nginx](https://nginx.org/) web server with:
 * [Naxsi](https://github.com/nbs-system/naxsi) WAF(Web Application Firewall) module, dynamic
-* ip2location geoip module (https://github.com/ip2location/ip2location-nginx) module, dynamic
+* ip2location geoip module [ip2location-nginx](https://github.com/ip2location/ip2location-nginx) module, dynamic. Uses [IP2Location-C-Library](https://github.com/chrislim2888/IP2Location-C-Library)
 * maxmind geoip v2 module, dynamic
 * http-echo module, dynamic
 * http-headers-more module, dynamic
