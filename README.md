@@ -13,7 +13,7 @@ It uses nginx packages from [Ubuntu nginx ppa](https://launchpad.net/~nginx/+arc
 Debian nginx build system is quite intricate, and this solution is ugly and lazily made, but it works and produces Debian-like Nginx packages with Naxsi support.
 
 ## Usage
-Files for different os-releases should have names like run.**<os-codename>**.sh
+Files for different os-releases should have names like run.**[os-codename]**.sh
 
 ```bash
 BASE_IMAGE="ubuntu:focal"
