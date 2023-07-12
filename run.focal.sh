@@ -10,15 +10,26 @@ set -x
 
 NGINX_ORIG_VERSION=$(apt-cache policy nginx | grep -A1 'Version table' | grep -v 'Version table' | tr -s ' ' | cut -d' ' -f2 | cut -d'+' -f1)
 NGINX_BUILD_VERSION="10$NGINX_ORIG_VERSION"
+# NAXSI_CODE_URL_PREFIX="https://github.com/nbs-system/naxsi/archive/"
+# NAXSI_CODE_FILENAME="${NAXSI_VERSION}.tar.gz"
+
+# NAXSI_CODE_URL_PREFIX="https://github.com/wargio/naxsi/archive/refs/tags/"
+# NAXSI_CODE_FILENAME="${NAXSI_VERSION}.tar.gz"
+
+NAXSI_CODE_URL_PREFIX="https://github.com/wargio/naxsi/releases/download/${NAXSI_VERSION}/"
+NAXSI_CODE_FILENAME="naxsi-${NAXSI_VERSION}-src-with-deps.tar.gz"
 
 apt source nginx
 nginx_src=$(readlink -f $(find . -type d -name 'nginx-*' | head -1))
 
 # GET LIBRARIES
 
-curl -L -O https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz
-tar xzf ${NAXSI_VERSION}.tar.gz
-mv naxsi-${NAXSI_VERSION} http-naxsi
+curl -L -O "${NAXSI_CODE_URL_PREFIX}${NAXSI_CODE_FILENAME}"
+mkdir -p http-naxsi
+tar -C http-naxsi -xzf "${NAXSI_CODE_FILENAME}"
+if test -d http-naxsi/naxsi-${NAXSI_VERSION}; then
+    mv http-naxsi/naxsi-${NAXSI_VERSION}/* http-naxsi
+fi
 cp -r http-naxsi ${nginx_src}/debian/modules/
 
 curl -L -O https://github.com/chrislim2888/IP2Location-C-Library/archive/refs/tags/${IP2LOCATION_LIB_VERSION}.tar.gz
