@@ -1,7 +1,7 @@
 # nginx-naxsi-build
 
 Dockerfile to build Ubuntu packages of [Nginx](https://nginx.org/) web server with:
-* [Naxsi](https://github.com/nbs-system/naxsi) WAF(Web Application Firewall) module, dynamic
+* [Naxsi](https://github.com/wargio/naxsi) WAF(Web Application Firewall) module, dynamic
 * ip2location geoip module [ip2location-nginx](https://github.com/ip2location/ip2location-nginx), dynamic. Uses [IP2Location-C-Library](https://github.com/chrislim2888/IP2Location-C-Library)
 * maxmind geoip v2 module, dynamic
 * http-echo module, dynamic
@@ -17,8 +17,8 @@ Files for different os-releases should have names like run.**[os-codename]**.sh
 
 ```bash
 BASE_IMAGE="ubuntu:focal"
-NAXSI_VERSION="1.3"
-IP2LOCATION_LIB_VERSION="8.4.1"
+NAXSI_VERSION="1.4"
+IP2LOCATION_LIB_VERSION="8.6.1"
 docker build . -t build-nginx --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NAXSI_VERSION="$NAXSI_VERSION" --build-arg IP2LOCATION_LIB_VERSION="$IP2LOCATION_LIB_VERSION"
 mkdir ~/nginx-packages
 # --rm: do not leave the container hanging in system
