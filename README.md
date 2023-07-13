@@ -16,7 +16,7 @@ Debian nginx build system is quite intricate, and this solution is ugly and lazi
 Files for different os-releases should have names like run.**[os-codename]**.sh
 
 ```bash
-BASE_IMAGE="ubuntu:focal"
+BASE_IMAGE="ubuntu:20.04"
 NAXSI_VERSION="1.4"
 IP2LOCATION_LIB_VERSION="8.6.1"
 docker build . -t build-nginx --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NAXSI_VERSION="$NAXSI_VERSION" --build-arg IP2LOCATION_LIB_VERSION="$IP2LOCATION_LIB_VERSION"
