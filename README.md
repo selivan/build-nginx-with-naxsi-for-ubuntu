@@ -29,7 +29,7 @@ Note: module loading directives are present in modules-enabled subdirectory.
 
 ## nginx build arguments
 
-Modify variable NGINX_BUILD_ARGS in Dockerfile. It has all necessary nginx build args except all `--add-dynamic-module=` ones.
+Modify variable `NGINX_BUILD_ARGS` in Dockerfile. It has all necessary nginx build args except all `--add-dynamic-module=` ones.
 
 Or add docker argument `NGINX_MORE_BUILD_ARGS`:
 
