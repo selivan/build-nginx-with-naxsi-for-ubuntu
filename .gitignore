@@ -1,0 +1,19 @@
+/checkinstall-files-to-add
+
+# build results
+/packages/*
+!/packages/.gitkeep
+
+# source code archives
+/*.archive
+/*.tar.gz
+/*.tar.bz
+/*.tgz
+/*.tbz
+/*.zip
+
+# nginx src
+/nginx
+# modules src
+/modules/*
+!/modules/.gitkeep
