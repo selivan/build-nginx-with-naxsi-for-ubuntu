@@ -4,10 +4,10 @@ Dockerfile to build Ubuntu packages of [Nginx](https://nginx.org/) web server wi
 
 Provided `nginx_modules.yaml` file adds this modules:
 
-* [Naxsi](https://github.com/wargio/naxsi) WAF(Web Application Firewall) module
-* [geoip2](https://github.com/leev/ngx_http_geoip2_module), geoip module for new maxmind format
-* [http-echo](https://github.com/openresty/echo-nginx-module/)
-* [http-headers-more](https://github.com/openresty/headers-more-nginx-module/)
+* [Naxsi](https://github.com/wargio/naxsi) - WAF(Web Application Firewall) module
+* [geoip2](https://github.com/leev/ngx_http_geoip2_module) - geoip module for new maxmind format
+* [http-echo](https://github.com/openresty/echo-nginx-module/) - add echo and other useful directives
+* [http-headers-more](https://github.com/openresty/headers-more-nginx-module/) - set and clear all input and ouput headers
 
 Custom package is set to have version with "10" prefix over actual nginx version(like 101.26.1 instead of 1.26.1) so it always have preference over system packages.
 
