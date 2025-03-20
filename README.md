@@ -23,7 +23,7 @@ docker run --rm -it -v "$(pwd)":/opt build-nginx
 
 ## nginx configs
 
-Debian style nginx configs are copied from `nginx-configs`. Change if necessary.
+Debian style nginx configs are copied from `nginx_configs`. Change if necessary.
 
 Note: module loading directives are present in modules-enabled subdirectory.
 
