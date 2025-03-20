@@ -35,7 +35,7 @@ Or add docker argument `NGINX_CC_OPT` for additional gcc arguments:
 
 `--build-arg NGINX_CC_OPT="-march=x86-64-v3"`
 
-Note: you cah use command `ld.so --help` (end of the output) to detect supported [x86-64 microarchtecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
+Note: you cah use command `ld.so --help` (see the end of the output) to detect supported [x86-64 microarchtecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
 
 To get default nginx build args for your system:
 
