@@ -39,7 +39,7 @@ Note: you cah use command `ld.so --help` (see the end of the output) to detect s
 
 To get default nginx build args for your system:
 
-```
+```bash
 docker run --rm -it ubuntu:24.04
 apt update; apt install --yes --install-recommends=no nginx-light
 nginx -V 2>&1 | grep "configure arguments:" | cut -d ":" -f2- | sed -e "s#/build/nginx-[A-Za-z0-9]*/#./#g" | sed 's/--add-dynamic-module=[A-Za-z0-9\/\._-]*//g'
@@ -47,7 +47,7 @@ nginx -V 2>&1 | grep "configure arguments:" | cut -d ":" -f2- | sed -e "s#/build
 
 # Debug
 
-```
+```bash
 docker run --rm -it -v "$(pwd)":/opt -w /opt --entrypoint /bin/bash build-nginx
 # inside container
 ./run.sh # fix whatever is broken
