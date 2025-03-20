@@ -31,9 +31,9 @@ Note: module loading directives are present in modules-enabled subdirectory.
 
 Modify variable `NGINX_BUILD_ARGS` in Dockerfile. It has all necessary nginx build args except all `--add-dynamic-module=` ones.
 
-Or add docker argument `NGINX_MORE_BUILD_ARGS`:
+Or add docker argument `NGINX_CC_OPT` for additional gcc arguments:
 
-`--build-arg NGINX_MORE_BUILD_ARGS="-march=x86-64-v3"`
+`--build-arg NGINX_CC_OPT="-march=x86-64-v3"`
 
 Note: you cah use command `ld.so --help` (end of the output) to detect supported [x86-64 microarchtecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
 
