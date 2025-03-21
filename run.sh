@@ -35,7 +35,7 @@ mv --no-target-directory nginx-"$NGINX_VERSION" nginx
 
 
 : > nginx-build-module-args
-DEPENDENCIES="libc6,libssl3"
+echo -n "libc6,libssl3" > dependencies
 
 cat nginx_modules.yaml | yq --output-format json | jq -c '.dymanic_modules[]' | while read -r i; do
 
@@ -71,7 +71,7 @@ cat nginx_modules.yaml | yq --output-format json | jq -c '.dymanic_modules[]' | 
 
     # INSTALL DEPENDENCIES
     if [ -n "$deps" ]; then
-        DEPENDENCIES="$DEPENDENCIES,$deps"
+        echo -n ",$deps" >> dependencies
         apt install --yes --install-recommends=no $(echo $deps | tr ',' ' ')
     fi
 
@@ -95,7 +95,8 @@ cat nginx_modules.yaml | yq --output-format json | jq -c '.dymanic_modules[]' | 
 done
 
 NGINX_BUILD_MODULE_ARGS="$(cat nginx-build-module-args)"
-rm -f nginx-build-module-args
+DEPENDENCIES="$(cat dependencies)"
+rm -f nginx-build-module-args dependencies
 
 ## CONFIGURE NGINX
 
@@ -113,6 +114,10 @@ cp -arf nginx_configs/* /
 
 cp -arf nginx_configs/etc/nginx/* nginx/conf
 
+# CREATE SYMLINK TO FIX BROKEN MODULES SEARCH
+
+ln -sf -T /usr/lib/nginx/modules /usr/share/nginx/modules
+
 # CREATE LIST OF FILES TO INCLUDE FOR CHECKINSTALL
 
 : > checkinstall-files-to-add
@@ -123,6 +128,7 @@ find /etc/nginx/modules-enabled -type l >> checkinstall-files-to-add
 # See NGINX_BUILD_ARGS in Dockerfile
 mkdir -p /var/lib/nginx/{body,fastcgi,proxy,scgi,uwsgi}
 find /var/lib/nginx -type d >> checkinstall-files-to-add
+echo /usr/share/nginx/modules >> checkinstall-files-to-add
 
 ## BUILD
 
@@ -132,10 +138,14 @@ make
 
 make install
 
-# Some workarounds, no idea why this is necessary when make install works fine
+# Some workarounds, no idea why this is necessary:
+# make install works fine, but checkinstall fails without this
 rm -f /etc/nginx/koi-utf /etc/nginx/koi-win /etc/nginx/win-utf
 rm -f /usr/lib/nginx/modules/*.so
 rm -f /etc/nginx/{fastcgi.conf,fastcgi_params,mime.types,nginx.conf,scgi_params,uwsgi_params}
+
+# copy checkinstall files in build dir
+cp -fr ../checkinstall/* .
 
 checkinstall --nodoc --deldesc --pkgname=nginx --maintainer=selivan@github --pkgversion=${NGINX_BUILD_VERSION} --requires=${DEPENDENCIES} --include=../checkinstall-files-to-add -y
 
