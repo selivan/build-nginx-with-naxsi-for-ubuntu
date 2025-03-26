@@ -11,7 +11,7 @@ Provided `nginx_modules.yaml` file adds this modules:
 
 Custom package is set to have version with "10" prefix over actual nginx version(like 101.26.1 instead of 1.26.1) so it always have preference over system packages.
 
-[checkinstall](https://checkinstall.izto.org/) is used, which is old and probably not updated anymore, but very convenient.
+[checkinstall](https://checkinstall.izto.org/) is used, which is old and probably not updated anymore, but very simple and convenient.
 
 # Usage
 
