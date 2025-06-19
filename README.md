@@ -23,11 +23,9 @@ docker run --rm -it -v "$(pwd)":/opt build-nginx
 # built packages are now in packages directory
 ```
 
-## nginx configs
+## nginx modules
 
-Debian style nginx configs are copied from `nginx_configs`. Change if necessary.
-
-Note: module loading directives are present in modules-enabled subdirectory.
+Modules versions and download URLs are in `nginx_modules.yaml`.
 
 ## nginx build arguments
 
@@ -46,6 +44,11 @@ docker run --rm -it ubuntu:24.04
 apt update; apt install --yes --install-recommends=no nginx-light
 nginx -V 2>&1 | grep "configure arguments:" | cut -d ":" -f2- | sed -e "s#/build/nginx-[A-Za-z0-9]*/#./#g" | sed 's/--add-dynamic-module=[A-Za-z0-9\/\._-]*//g'
 ```
+## nginx configs
+
+Debian style nginx configs are copied from `nginx_configs`. Change if necessary.
+
+Note: module loading directives are present in modules-enabled subdirectory.
 
 # Debug
 
