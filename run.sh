@@ -109,6 +109,7 @@ cd ..
 ## COPY CUSTOM CONFIGS
 
 cp -arf nginx_configs/* /
+mkdir -p /etc/nginx/sites-enabled
 
 # REPLACE CONFIGS IN NGINX SOURCES WITH OUR ONES TO PREVENT MAKEFILE FROM OVERRIDING OUR CONFIGS
 
