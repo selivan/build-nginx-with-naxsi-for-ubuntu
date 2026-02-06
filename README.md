@@ -1,6 +1,6 @@
 # nginx-naxsi-build
 
-Dockerfile to build Ubuntu packages of [Nginx](https://nginx.org/) web server with additional modules, defined in `nginx_modules.yaml`.
+Dockerfile to build Ubuntu packages of [Nginx](https://nginx.org/en/download.html) web server with additional modules, defined in `nginx_modules.yaml`.
 
 Provided `nginx_modules.yaml` file adds this modules:
 
@@ -17,7 +17,7 @@ Custom package is set to have version with "10" prefix over actual nginx version
 
 ```bash
 BASE_IMAGE="ubuntu:24.04"
-NGINX_VERSION="1.28.0"
+NGINX_VERSION="1.28.2"
 NGINX_CC_OPT="-march=x86-64-v3"
 docker build . -t build-nginx --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT"
 # --rm: do not leave the container hanging in system

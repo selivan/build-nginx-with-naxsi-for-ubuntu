@@ -16,10 +16,10 @@ dymanic_modules:
     build_deps: "libmaxminddb-dev"
     deps: "libmaxminddb0"
   - name: ngx_http_headers_more_filter_module
-    url: "https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.38.tar.gz"
+    url: "https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.39.tar.gz"
     build_deps: ""
     deps: ""
   - name: ngx_http_echo_module
-    url: "https://github.com/openresty/echo-nginx-module/archive/refs/tags/v0.63.tar.gz"
+    url: "https://github.com/openresty/echo-nginx-module/archive/refs/tags/v0.64.tar.gz"
     build_deps: ""
     deps: ""
