@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # This is required to install tzdata package without questions
 ENV TZ=Etc/UTC
 
-ENV ADD_PACKAGES="curl ca-certificates atool autoconf jq yq checkinstall libssl-dev zlib1g-dev libpcre3-dev"
+ENV ADD_PACKAGES="curl ca-certificates atool autoconf jq yq checkinstall libssl-dev zlib1g-dev libpcre2-dev libpcre3-dev"
 
 RUN sed -i 's/Types: deb/Types: deb deb-src/g' /etc/apt/sources.list.d/ubuntu.sources && \
     apt update && \

@@ -25,9 +25,19 @@ docker run --rm -it -v "$(pwd)":/opt build-nginx
 # built packages are now in packages directory
 ```
 
-## nginx modules
+## nginx_modules.yaml
 
 Modules versions and download URLs are in `nginx_modules.yaml`.
+
+* `name` should be name of `*.so` file after building module
+* `url`  URL to download module. It can have `$version` placeholder that will be replaced by `version`
+* `version`  Can be used in URL as `$version`
+* `version_use_github_latest_release`  if `true` and URL is github link: `version` will be generated for latest available release
+* `version_use_github_latest_tag`  if `true` and URL is github link: `version` will be generated for latest available tag
+* `deps`  packages that should be added to depencdencies of built package, like `libfoobar`
+* `build_deps`  packages required for building process, like `libfoobar-dev`
+* `src_subdir`  directory inside package archive used as argument for `--add-dynamic-module` configure option. Usually not necessary
+* `config`, `config_dest`  That file(or directory) will be copied to that destination and added to built package
 
 ## nginx build arguments
 

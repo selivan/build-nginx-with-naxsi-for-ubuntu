@@ -17,3 +17,5 @@
 # modules src
 /modules/*
 !/modules/.gitkeep
+# modules versions for package description
+/nginx-modules-versions

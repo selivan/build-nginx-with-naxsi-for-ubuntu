@@ -1,7 +1,5 @@
 #!/bin/bash
 
-cd /opt
-
 set -x
 set -e
 
@@ -33,19 +31,38 @@ tar -xzf nginx.tar.gz
 test -d nginx && rm -fr nginx
 mv --no-target-directory nginx-"$NGINX_VERSION" nginx
 
-
+: > dependencies
 : > nginx-build-module-args
-echo -n "libc6,libssl3" > dependencies
+: > nginx-modules-versions
+echo -n "libc6,libssl3" >> dependencies
 
 cat nginx_modules.yaml | yq --output-format json | jq -c '.dymanic_modules[]' | while read -r i; do
 
     name=$(echo "$i" | jq -r '.name')
-    url=$(echo "$i" | jq -r '.url')
     build_deps=$(echo "$i" | jq -r '.build_deps // ""')
     deps=$(echo "$i" | jq -r '.deps // ""')
     src_subdir=$(echo "$i" | jq -r '.src_subdir // ""')
     config=$(echo "$i" | jq -r '.config // ""')
     config_dest=$(echo "$i" | jq -r '.config_dest // ""')
+    url=$(echo "$i" | jq -r '.url')
+    version=$(echo "$i" | jq -r '.version')
+    version_use_github_latest_release=$(echo "$i" | jq -r '.version_use_github_latest_release')
+    version_use_github_latest_tag=$(echo "$i" | jq -r '.version_use_github_latest_tag')
+
+    if [ "$version_use_github_latest_release" == "true" ]; then
+        owner_repo="$(echo "$url" | cut -d/ -f4,5)"
+        version=$(curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r ".tag_name")
+    fi
+
+    if [ "$version_use_github_latest_tag" == "true" ]; then
+        owner_repo="$(echo "$url" | cut -d/ -f4,5)"
+        version=$(curl -s "https://api.github.com/repos/$owner_repo/tags?per_page=1" | jq -r ".[0].name")
+    fi
+
+    export version
+    url="$(echo "$url" | envsubst)"
+
+    echo "$name $version ($url)" >> nginx-modules-versions
 
     filename="${name}.archive"
 
@@ -147,6 +164,12 @@ rm -f /etc/nginx/{fastcgi.conf,fastcgi_params,mime.types,nginx.conf,scgi_params,
 
 # copy checkinstall files in build dir
 cp -fr ../checkinstall/* .
+
+: > description-pak
+echo "Custom nginx build" >> description-pak
+echo "Made using https://github.com/selivan/build-nginx-with-naxsi-for-ubuntu/" >> description-pak
+echo "Added modules and versions:" >> description-pak
+cat ../nginx-modules-versions >> description-pak
 
 checkinstall --nodoc --deldesc --pkgname=nginx --maintainer=selivan@github --pkgversion=${NGINX_BUILD_VERSION} --requires=${DEPENDENCIES} --include=../checkinstall-files-to-add -y
 
