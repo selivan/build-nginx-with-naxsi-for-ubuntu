@@ -17,12 +17,79 @@ Custom package is set to have version with "10" prefix over actual nginx version
 
 ```bash
 BASE_IMAGE="ubuntu:24.04"
+UBUNTU_RELEASE="24.04"
+DOCKER_PLATFORM="linux/amd64"
 NGINX_VERSION="1.28.2"
 NGINX_CC_OPT="-march=x86-64-v3"
-docker build . -t build-nginx --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT"
+docker build . -t build-nginx --platform="$DOCKER_PLATFORM" --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT"
 # --rm: do not leave the container hanging in system
-docker run --rm -it -v "$(pwd)":/opt build-nginx
+docker run --rm -it --platform="$DOCKER_PLATFORM" -e UBUNTU_RELEASE="$UBUNTU_RELEASE" -v "$(pwd)":/opt build-nginx
 # built packages are now in packages directory
+```
+
+The `packages` directory contains the built `.deb` files. The `repo` directory is updated as a signed APT repository:
+
+* `pool/main/n/nginx/*.deb` - package files for all retained versions
+* `dists/<ubuntu-release>/main/binary-<arch>/Packages.gz` - package indexes
+* `dists/<ubuntu-release>/Release`, `Release.gpg`, `InRelease` - repository metadata and signatures
+* `nginx-repo-signing-key.asc` - public signing key to share with users
+
+The private signing keyring is generated in `repo-gpg` and reused by later builds. Keep this directory private.
+
+The generated `nginx` package is intended to replace Ubuntu nginx packages. Its Debian metadata declares `Conflicts` and `Replaces` for `nginx-common`, `nginx-core`, `nginx-light`, `nginx-full`, and `nginx-extras`, so installing it over the stock Ubuntu nginx package does not fail on shared config files.
+
+Package versions include the target Ubuntu release, for example `101.30.0-1~ubuntu24.04`, so one repository can safely contain builds for multiple Ubuntu releases.
+
+For arm64/Graviton builds use Docker platform `linux/arm64` and leave `NGINX_CC_OPT` empty unless you intentionally need CPU-specific compiler flags:
+
+```bash
+BASE_IMAGE="ubuntu:24.04"
+UBUNTU_RELEASE="24.04"
+DOCKER_PLATFORM="linux/arm64"
+NGINX_VERSION="1.30.0"
+NGINX_CC_OPT=""
+NGINX_LTO_OPT=""
+docker build . -t build-nginx-arm64 --platform="$DOCKER_PLATFORM" --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT" --build-arg NGINX_LTO_OPT="$NGINX_LTO_OPT"
+docker run --rm -it --platform="$DOCKER_PLATFORM" -e UBUNTU_RELEASE="$UBUNTU_RELEASE" -v "$(pwd)":/opt build-nginx-arm64
+```
+
+To keep metadata for several Ubuntu releases in one repository, pass all releases and architectures when running the build:
+
+```bash
+docker run --rm -it \
+  --platform="$DOCKER_PLATFORM" \
+  -e UBUNTU_RELEASE="$UBUNTU_RELEASE" \
+  -e APT_REPO_RELEASES="22.04 24.04 26.04" \
+  -e APT_REPO_ARCHITECTURES="amd64 arm64" \
+  -v "$(pwd)":/opt \
+  build-nginx
+```
+
+Run the build once for every target tuple you need, changing `BASE_IMAGE`, `UBUNTU_RELEASE`, `DOCKER_PLATFORM`, and `NGINX_VERSION`. Each run adds its `.deb` to `repo/pool/main/n/nginx/` and regenerates indexes under `repo/dists/`.
+
+Or build the default matrix sequentially for Ubuntu 24.04, 22.04, 26.04 and `amd64`/`arm64`:
+
+```bash
+NGINX_VERSION="1.30.0" ./build-all.sh
+```
+
+To customize the generated key on the first run:
+
+```bash
+docker run --rm -it \
+  -e APT_REPO_KEY_NAME="Example nginx packages" \
+  -e APT_REPO_KEY_EMAIL="nginx-packages@example.com" \
+  -v "$(pwd)":/opt \
+  build-nginx
+```
+
+To use the repository after publishing `repo/` to a web server:
+
+```bash
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://example.com/custom_packages/nginx/repo/nginx-repo-signing-key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/custom-nginx.gpg
+echo "deb [signed-by=/etc/apt/keyrings/custom-nginx.gpg] https://example.com/custom_packages/nginx/repo 24.04 main" | sudo tee /etc/apt/sources.list.d/custom-nginx.list
+sudo apt update
 ```
 
 ## nginx_modules.yaml
@@ -46,6 +113,18 @@ Modify variable `NGINX_BUILD_ARGS` in Dockerfile. It has all necessary nginx bui
 Or add docker argument `NGINX_CC_OPT` for additional gcc arguments:
 
 `--build-arg NGINX_CC_OPT="-march=x86-64-v3"`
+
+The default LTO flags can be changed with:
+
+`--build-arg NGINX_LTO_OPT="-flto=auto -ffat-lto-objects"`
+
+`build-all.sh` disables `NGINX_LTO_OPT` for arm64 by default because that linker check fails under the arm64 Docker/qemu build path on some hosts.
+
+The common compiler and linker flags can also be overridden when a target architecture needs a different hardening set:
+
+`--build-arg NGINX_COMMON_CC_OPT="-g -O2 -fno-omit-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fPIC -Wdate-time -D_FORTIFY_SOURCE=3"`
+
+`--build-arg NGINX_LD_OPT="-Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -fPIC"`
 
 Note: you can use command `ld.so --help` (see the end of the output) to detect supported [x86-64 microarchtecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
 

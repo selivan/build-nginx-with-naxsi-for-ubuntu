@@ -3,6 +3,10 @@
 # build results
 /packages/*
 !/packages/.gitkeep
+/repo
+
+# private signing keyring for generated apt repository metadata
+/repo-gpg
 
 # source code archives
 /*.archive

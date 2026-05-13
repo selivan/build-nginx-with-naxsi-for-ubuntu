@@ -8,10 +8,136 @@ function fail() {
 }
 trap fail ERR
 
+function get_apt_repo_signing_key() {
+    local gpg_home="$1"
+    local key_name="${APT_REPO_KEY_NAME:-Custom nginx APT repository}"
+    local key_email="${APT_REPO_KEY_EMAIL:-nginx-repo@example.invalid}"
+    local key_selector="${APT_REPO_KEY_ID:-}"
+
+    mkdir -p "$gpg_home"
+    chmod 700 "$gpg_home"
+
+    if [ -z "$key_selector" ]; then
+        key_selector="$(gpg --no-permission-warning --homedir "$gpg_home" --list-secret-keys --with-colons 2>/dev/null | awk -F: '$1 == "fpr" { print $10; exit }')"
+    fi
+
+    if [ -z "$key_selector" ]; then
+        cat > "$gpg_home/key.batch" <<EOF
+Key-Type: RSA
+Key-Length: 4096
+Subkey-Type: RSA
+Subkey-Length: 4096
+Name-Real: $key_name
+Name-Email: $key_email
+Expire-Date: 0
+%no-protection
+%commit
+EOF
+        gpg --batch --no-permission-warning --homedir "$gpg_home" --generate-key "$gpg_home/key.batch"
+        rm -f "$gpg_home/key.batch"
+        key_selector="$(gpg --no-permission-warning --homedir "$gpg_home" --list-secret-keys --with-colons | awk -F: '$1 == "fpr" { print $10; exit }')"
+    fi
+
+    echo "$key_selector"
+}
+
+function build_apt_repository() {
+    local repo_dir="${APT_REPO_ROOT:-repo}"
+    local gpg_home="${APT_REPO_GPG_HOME:-repo-gpg}"
+    local component="${APT_REPO_COMPONENT:-main}"
+    local releases="${APT_REPO_RELEASES:-$UBUNTU_RELEASE}"
+    local architectures="${APT_REPO_ARCHITECTURES:-amd64 arm64}"
+    local key_selector
+    local release
+    local arch
+    local arch_dir
+
+    mkdir -p "$repo_dir"
+    key_selector="$(get_apt_repo_signing_key "$gpg_home")"
+
+    for release in $releases; do
+        for arch in $architectures; do
+            arch_dir="$repo_dir/dists/$release/$component/binary-$arch"
+            mkdir -p "$arch_dir"
+            (
+                cd "$repo_dir"
+                apt-ftparchive packages pool | awk -v arch="$arch" -v release="~ubuntu$release" '
+                    BEGIN { RS = ""; ORS = "\n\n" }
+                    $0 ~ "\nArchitecture: " arch "(\n|$)" && $0 ~ "\nVersion: [^\n]*" release "(\n|$)" { print }
+                ' > "dists/$release/$component/binary-$arch/Packages"
+                gzip -9fk "dists/$release/$component/binary-$arch/Packages"
+            )
+        done
+
+        (
+            cd "$repo_dir"
+            apt-ftparchive \
+                -o APT::FTPArchive::Release::Origin="Custom nginx packages" \
+                -o APT::FTPArchive::Release::Label="Custom nginx packages" \
+                -o APT::FTPArchive::Release::Suite="$release" \
+                -o APT::FTPArchive::Release::Codename="$release" \
+                -o APT::FTPArchive::Release::Architectures="$architectures" \
+                -o APT::FTPArchive::Release::Components="$component" \
+                -o APT::FTPArchive::Release::Description="Custom nginx packages" \
+                release "dists/$release" > "dists/$release/Release"
+        )
+
+        gpg --batch --yes --no-permission-warning --homedir "$gpg_home" --armor --detach-sign --local-user "$key_selector" \
+            --output "$repo_dir/dists/$release/Release.gpg" "$repo_dir/dists/$release/Release"
+        gpg --batch --yes --no-permission-warning --homedir "$gpg_home" --clearsign --local-user "$key_selector" \
+            --output "$repo_dir/dists/$release/InRelease" "$repo_dir/dists/$release/Release"
+    done
+
+    gpg --batch --yes --no-permission-warning --homedir "$gpg_home" --output "$repo_dir/nginx-repo-signing-key.asc" \
+        --armor --export "$key_selector"
+}
+
+function publish_debs_to_apt_pool() {
+    local repo_dir="${APT_REPO_ROOT:-repo}"
+    local pool_dir="$repo_dir/pool/main/n/nginx"
+    local deb
+
+    mkdir -p "$pool_dir"
+    for deb in "$@"; do
+        cp -f "$deb" "$pool_dir/"
+    done
+}
+
+function normalize_nginx_deb_control() {
+    local deb_path="$1"
+    local deb_tmp_dir
+    local control_file
+
+    deb_tmp_dir="$(mktemp -d)"
+    dpkg-deb -R "$deb_path" "$deb_tmp_dir"
+    control_file="$deb_tmp_dir/DEBIAN/control"
+
+    awk '
+        /^[^[:space:]][^:]*:/ {
+            field = $1
+            sub(":", "", field)
+            drop = (field == "Conflicts" || field == "Replaces" || field == "Provides")
+        }
+        !drop { print }
+    ' "$control_file" > "$control_file.new"
+    mv "$control_file.new" "$control_file"
+
+    cat >> "$control_file" <<EOF
+Conflicts: nginx-common, nginx-core, nginx-light, nginx-full, nginx-extras
+Replaces: nginx-common, nginx-core, nginx-light, nginx-full, nginx-extras
+Provides: nginx, nginx-common, httpd, httpd-cgi
+EOF
+
+    dpkg-deb -b "$deb_tmp_dir" "$deb_path"
+    rm -rf "$deb_tmp_dir"
+}
+
 # CHECK THAT REQUIRED VARIABLES ARE SET
 
 test -n "$NGINX_VERSION"
+UBUNTU_RELEASE="${UBUNTU_RELEASE:-$(. /etc/os-release && echo "$VERSION_ID")}"
 NGINX_BUILD_VERSION="10$NGINX_VERSION"
+NGINX_PACKAGE_RELEASE="1~ubuntu${UBUNTU_RELEASE}"
 # See https://nginx.org/en/download.html
 NGINX_URL="https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
 
@@ -171,8 +297,16 @@ echo "Made using https://github.com/selivan/build-nginx-with-naxsi-for-ubuntu/" 
 echo "Added modules and versions:" >> description-pak
 cat ../nginx-modules-versions >> description-pak
 
-checkinstall --nodoc --deldesc --pkgname=nginx --maintainer=selivan@github --pkgversion=${NGINX_BUILD_VERSION} --requires=${DEPENDENCIES} --include=../checkinstall-files-to-add -y
+checkinstall --nodoc --deldesc --pkgname=nginx --maintainer=selivan@github --pkgversion=${NGINX_BUILD_VERSION} --pkgrelease=${NGINX_PACKAGE_RELEASE} --requires=${DEPENDENCIES} --include=../checkinstall-files-to-add -y
 
+for deb in *.deb; do
+    normalize_nginx_deb_control "$deb"
+done
+
+mkdir -p ../packages
 cp -f *.deb ../packages
+cd ..
+publish_debs_to_apt_pool packages/*.deb
+build_apt_repository
 
-echo "OK: build successful. Check packages dir"
+echo "OK: build successful. Check packages and repo dirs"
