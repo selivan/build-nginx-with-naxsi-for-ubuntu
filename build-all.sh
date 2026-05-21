@@ -7,10 +7,10 @@ APT_REPO_RELEASES="${APT_REPO_RELEASES:-22.04 24.04 26.04}"
 APT_REPO_ARCHITECTURES="${APT_REPO_ARCHITECTURES:-amd64 arm64}"
 INSTALL_BINFMT="${INSTALL_BINFMT:-0}"
 
-NGINX_CC_OPT_AMD64_DEFAULT="-march=x86-64-v3"
+NGINX_CC_OPT_AMD64_DEFAULT=""
 NGINX_LTO_OPT_AMD64_DEFAULT="-flto=auto -ffat-lto-objects"
-NGINX_COMMON_CC_OPT_AMD64_DEFAULT="-g -O2 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -fPIC -Wdate-time -D_FORTIFY_SOURCE=3"
-NGINX_COMMON_CC_OPT_ARM64_DEFAULT="-g -O2 -fno-omit-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fPIC -Wdate-time -D_FORTIFY_SOURCE=3"
+NGINX_COMMON_CC_OPT_AMD64_DEFAULT="-g -O2 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -fPIC -Wdate-time -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -Wno-error=discarded-qualifiers"
+NGINX_COMMON_CC_OPT_ARM64_DEFAULT="-g -O2 -fno-omit-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fPIC -Wdate-time -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -Wno-error=discarded-qualifiers"
 NGINX_LD_OPT_DEFAULT="-Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -fPIC"
 
 platform_available() {

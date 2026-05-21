@@ -162,7 +162,7 @@ mv --no-target-directory nginx-"$NGINX_VERSION" nginx
 : > nginx-modules-versions
 echo -n "libc6,libssl3" >> dependencies
 
-cat nginx_modules.yaml | yq --output-format json | jq -c '.dymanic_modules[]' | while read -r i; do
+python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin), sys.stdout)' < nginx_modules.yaml | jq -c '.dymanic_modules[]' | while read -r i; do
 
     name=$(echo "$i" | jq -r '.name')
     build_deps=$(echo "$i" | jq -r '.build_deps // ""')

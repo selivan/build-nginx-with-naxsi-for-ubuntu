@@ -20,7 +20,7 @@ BASE_IMAGE="ubuntu:24.04"
 UBUNTU_RELEASE="24.04"
 DOCKER_PLATFORM="linux/amd64"
 NGINX_VERSION="1.28.2"
-NGINX_CC_OPT="-march=x86-64-v3"
+NGINX_CC_OPT=""
 docker build . -t build-nginx --platform="$DOCKER_PLATFORM" --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT"
 # --rm: do not leave the container hanging in system
 docker run --rm -it --platform="$DOCKER_PLATFORM" -e UBUNTU_RELEASE="$UBUNTU_RELEASE" -v "$(pwd)":/opt build-nginx
@@ -114,6 +114,10 @@ Or add docker argument `NGINX_CC_OPT` for additional gcc arguments:
 
 `--build-arg NGINX_CC_OPT="-march=x86-64-v3"`
 
+Leave `NGINX_CC_OPT` empty for packages that must run on generic amd64 machines.
+`-march=x86-64-v3` requires AVX/AVX2-capable CPUs; on older or constrained
+virtualized CPUs the resulting binary can crash with `SIGILL` / `invalid opcode`.
+
 The default LTO flags can be changed with:
 
 `--build-arg NGINX_LTO_OPT="-flto=auto -ffat-lto-objects"`
@@ -122,11 +126,11 @@ The default LTO flags can be changed with:
 
 The common compiler and linker flags can also be overridden when a target architecture needs a different hardening set:
 
-`--build-arg NGINX_COMMON_CC_OPT="-g -O2 -fno-omit-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fPIC -Wdate-time -D_FORTIFY_SOURCE=3"`
+`--build-arg NGINX_COMMON_CC_OPT="-g -O2 -fno-omit-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fPIC -Wdate-time -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -Wno-error=discarded-qualifiers"`
 
 `--build-arg NGINX_LD_OPT="-Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -fPIC"`
 
-Note: you can use command `ld.so --help` (see the end of the output) to detect supported [x86-64 microarchtecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
+Note: you can use command `ld.so --help` (see the end of the output) to detect supported [x86-64 microarchitecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) for your hardware.
 
 To get default nginx build args for your system:
 
