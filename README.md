@@ -19,7 +19,7 @@ Custom package is set to have version with "10" prefix over actual nginx version
 BASE_IMAGE="ubuntu:24.04"
 UBUNTU_RELEASE="24.04"
 DOCKER_PLATFORM="linux/amd64"
-NGINX_VERSION="1.28.2"
+NGINX_VERSION="1.30.4"
 NGINX_CC_OPT=""
 docker build . -t build-nginx --platform="$DOCKER_PLATFORM" --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT"
 # --rm: do not leave the container hanging in system
@@ -46,7 +46,7 @@ For arm64/Graviton builds use Docker platform `linux/arm64` and leave `NGINX_CC_
 BASE_IMAGE="ubuntu:24.04"
 UBUNTU_RELEASE="24.04"
 DOCKER_PLATFORM="linux/arm64"
-NGINX_VERSION="1.30.0"
+NGINX_VERSION="1.30.4"
 NGINX_CC_OPT=""
 NGINX_LTO_OPT=""
 docker build . -t build-nginx-arm64 --platform="$DOCKER_PLATFORM" --build-arg NGINX_VERSION="$NGINX_VERSION" --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg NGINX_CC_OPT="$NGINX_CC_OPT" --build-arg NGINX_LTO_OPT="$NGINX_LTO_OPT"
@@ -70,7 +70,7 @@ Run the build once for every target tuple you need, changing `BASE_IMAGE`, `UBUN
 Or build the default matrix sequentially for Ubuntu 24.04, 22.04, 26.04 and `amd64`/`arm64`:
 
 ```bash
-NGINX_VERSION="1.30.0" ./build-all.sh
+NGINX_VERSION="1.30.4" ./build-all.sh
 ```
 
 To customize the generated key on the first run:
