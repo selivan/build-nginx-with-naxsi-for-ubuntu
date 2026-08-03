@@ -2,11 +2,45 @@
 
 set -x
 set -e
+set -o pipefail
 
 function fail() {
     echo "ERROR: build failed. See container logs"
 }
 trap fail ERR
+
+if [ "${http_proxy+x}" = "x" ]; then
+    export http_proxy
+fi
+if [ "${https_proxy+x}" = "x" ]; then
+    export https_proxy
+fi
+
+function curl_retry() {
+    local attempt=1
+    local max_attempts=3
+    local status
+
+    while [ "$attempt" -le "$max_attempts" ]; do
+        set +e
+        curl --connect-timeout 30 "$@"
+        status=$?
+        set -e
+
+        if [ "$status" -eq 0 ]; then
+            return 0
+        fi
+
+        printf '\033[31mERROR: curl attempt %s/%s failed with exit code %s\033[0m\n' "$attempt" "$max_attempts" "$status" >&2
+        if command -v tg >/dev/null 2>&1; then
+            tg NGINX-curl || true
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    return "$status"
+}
 
 function get_apt_repo_signing_key() {
     local gpg_home="$1"
@@ -152,7 +186,7 @@ apt build-dep --yes --install-recommends=no nginx
 
 # GET NGINX SOURCE
 
-curl -L "$NGINX_URL" -o nginx.tar.gz
+curl_retry -L "$NGINX_URL" -o nginx.tar.gz
 tar -xzf nginx.tar.gz
 test -d nginx && rm -fr nginx
 mv --no-target-directory nginx-"$NGINX_VERSION" nginx
@@ -177,12 +211,12 @@ python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin), sys.std
 
     if [ "$version_use_github_latest_release" == "true" ]; then
         owner_repo="$(echo "$url" | cut -d/ -f4,5)"
-        version=$(curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r ".tag_name")
+        version=$(curl_retry -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r ".tag_name")
     fi
 
     if [ "$version_use_github_latest_tag" == "true" ]; then
         owner_repo="$(echo "$url" | cut -d/ -f4,5)"
-        version=$(curl -s "https://api.github.com/repos/$owner_repo/tags?per_page=1" | jq -r ".[0].name")
+        version=$(curl_retry -s "https://api.github.com/repos/$owner_repo/tags?per_page=1" | jq -r ".[0].name")
     fi
 
     export version
@@ -194,7 +228,7 @@ python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin), sys.std
 
     # DOWNLOAD MODULES SOURCES
 
-    curl -L "$url" -o "$filename"
+    curl_retry -L "$url" -o "$filename"
     test -d "modules/$name" && rm -fr "modules/$name"
     mkdir -p "modules/$name"
     # auppack auto-detects archive type

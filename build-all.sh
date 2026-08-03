@@ -71,7 +71,7 @@ build_one() {
 
     echo "==> Building ${base_image} ${docker_platform} nginx ${NGINX_VERSION}"
 
-    docker build . \
+    set -- docker build . \
         -t "$image_tag" \
         --platform="$docker_platform" \
         --build-arg BASE_IMAGE="$base_image" \
@@ -80,13 +80,29 @@ build_one() {
         --build-arg NGINX_LTO_OPT="$nginx_lto_opt" \
         --build-arg NGINX_COMMON_CC_OPT="$nginx_common_cc_opt" \
         --build-arg NGINX_LD_OPT="$nginx_ld_opt"
+    if [ "${http_proxy+x}" = "x" ]; then
+        set -- "$@" --build-arg "http_proxy=$http_proxy"
+    fi
+    if [ "${https_proxy+x}" = "x" ]; then
+        set -- "$@" --build-arg "https_proxy=$https_proxy"
+    fi
+    "$@"
 
     if [ -t 0 ]; then
         run_tty_args="-it"
     fi
 
-    # shellcheck disable=SC2086
-    docker run --rm $run_tty_args \
+    set -- docker run --rm
+    if [ -n "$run_tty_args" ]; then
+        set -- "$@" "$run_tty_args"
+    fi
+    if [ "${http_proxy+x}" = "x" ]; then
+        set -- "$@" -e "http_proxy=$http_proxy"
+    fi
+    if [ "${https_proxy+x}" = "x" ]; then
+        set -- "$@" -e "https_proxy=$https_proxy"
+    fi
+    "$@" \
         --platform="$docker_platform" \
         -e UBUNTU_RELEASE="$ubuntu_release" \
         -e APT_REPO_RELEASES="$APT_REPO_RELEASES" \
@@ -101,4 +117,4 @@ for ubuntu_release in 24.04 22.04 26.04; do
     done
 done
 
-echo "OK: all builds finished. Check packages and repo dirs"
+echo -e "\e[32mOK: all builds finished. \e[0m Check packages and repo dirs"
