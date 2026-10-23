@@ -2,11 +2,53 @@
 
 set -x
 set -e
+set -o pipefail
 
 function fail() {
     echo "ERROR: build failed. See container logs"
 }
 trap fail ERR
+
+set +x
+# shellcheck source=scripts/check-nginx-version.sh
+. /opt/scripts/check-nginx-version.sh
+check_nginx_version
+set -x
+
+if [ "${http_proxy+x}" = "x" ]; then
+    export http_proxy
+fi
+if [ "${https_proxy+x}" = "x" ]; then
+    export https_proxy
+fi
+
+WORKSPACE_ROOT="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+function curl_retry() {
+    local attempt=1
+    local max_attempts=3
+    local status
+
+    while [ "$attempt" -le "$max_attempts" ]; do
+        set +e
+        curl --connect-timeout 30 "$@"
+        status=$?
+        set -e
+
+        if [ "$status" -eq 0 ]; then
+            return 0
+        fi
+
+        printf '\033[31mERROR: curl attempt %s/%s failed with exit code %s\033[0m\n' "$attempt" "$max_attempts" "$status" >&2
+        if command -v tg >/dev/null 2>&1; then
+            tg NGINX-curl || true
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    return "$status"
+}
 
 function get_apt_repo_signing_key() {
     local gpg_home="$1"
@@ -42,13 +84,14 @@ EOF
 }
 
 function build_apt_repository() {
-    local repo_dir="${APT_REPO_ROOT:-repo}"
-    local gpg_home="${APT_REPO_GPG_HOME:-repo-gpg}"
-    local component="${APT_REPO_COMPONENT:-main}"
+    local repo_dir="${APT_REPO_ROOT:-$WORKSPACE_ROOT/repo}"
+    local gpg_home="${APT_REPO_GPG_HOME:-$WORKSPACE_ROOT/repo-gpg}"
+    local components="${APT_REPO_COMPONENTS:-${APT_REPO_COMPONENT:-main oldcpu}}"
     local releases="${APT_REPO_RELEASES:-$UBUNTU_RELEASE}"
     local architectures="${APT_REPO_ARCHITECTURES:-amd64 arm64}"
     local key_selector
     local release
+    local component
     local arch
     local arch_dir
 
@@ -56,17 +99,24 @@ function build_apt_repository() {
     key_selector="$(get_apt_repo_signing_key "$gpg_home")"
 
     for release in $releases; do
-        for arch in $architectures; do
-            arch_dir="$repo_dir/dists/$release/$component/binary-$arch"
-            mkdir -p "$arch_dir"
-            (
-                cd "$repo_dir"
-                apt-ftparchive packages pool | awk -v arch="$arch" -v release="~ubuntu$release" '
-                    BEGIN { RS = ""; ORS = "\n\n" }
-                    $0 ~ "\nArchitecture: " arch "(\n|$)" && $0 ~ "\nVersion: [^\n]*" release "(\n|$)" { print }
-                ' > "dists/$release/$component/binary-$arch/Packages"
-                gzip -9fk "dists/$release/$component/binary-$arch/Packages"
-            )
+        for component in $components; do
+            mkdir -p "$repo_dir/pool/$component"
+            for arch in $architectures; do
+                arch_dir="$repo_dir/dists/$release/$component/binary-$arch"
+                mkdir -p "$arch_dir"
+                (
+                    cd "$repo_dir"
+                    apt-ftparchive packages "pool/$component" | awk -v arch="$arch" -v release="~ubuntu$release" -v component="$component" '
+                        BEGIN {
+                            RS = ""
+                            ORS = "\n\n"
+                            expected_release = release (component == "oldcpu" ? "~oldcpu" : "")
+                        }
+                        $0 ~ "\nArchitecture: " arch "(\n|$)" && $0 ~ "\nVersion: [^\n]*" expected_release "(\n|$)" { print }
+                    ' > "dists/$release/$component/binary-$arch/Packages"
+                    gzip -9fk "dists/$release/$component/binary-$arch/Packages"
+                )
+            done
         done
 
         (
@@ -77,7 +127,7 @@ function build_apt_repository() {
                 -o APT::FTPArchive::Release::Suite="$release" \
                 -o APT::FTPArchive::Release::Codename="$release" \
                 -o APT::FTPArchive::Release::Architectures="$architectures" \
-                -o APT::FTPArchive::Release::Components="$component" \
+                -o APT::FTPArchive::Release::Components="$components" \
                 -o APT::FTPArchive::Release::Description="Custom nginx packages" \
                 release "dists/$release" > "dists/$release/Release"
         )
@@ -93,9 +143,12 @@ function build_apt_repository() {
 }
 
 function publish_debs_to_apt_pool() {
-    local repo_dir="${APT_REPO_ROOT:-repo}"
-    local pool_dir="$repo_dir/pool/main/n/nginx"
+    local component="$1"
+    local repo_dir="${APT_REPO_ROOT:-$WORKSPACE_ROOT/repo}"
+    local pool_dir="$repo_dir/pool/$component/n/nginx"
     local deb
+
+    shift
 
     mkdir -p "$pool_dir"
     for deb in "$@"; do
@@ -107,6 +160,7 @@ function normalize_nginx_deb_control() {
     local deb_path="$1"
     local deb_tmp_dir
     local control_file
+    local nginx_conflicts
 
     deb_tmp_dir="$(mktemp -d)"
     dpkg-deb -R "$deb_path" "$deb_tmp_dir"
@@ -122,13 +176,20 @@ function normalize_nginx_deb_control() {
     ' "$control_file" > "$control_file.new"
     mv "$control_file.new" "$control_file"
 
+    nginx_conflicts="nginx-common, nginx-core, nginx-light, nginx-full, nginx-extras"
+
     cat >> "$control_file" <<EOF
-Conflicts: nginx-common, nginx-core, nginx-light, nginx-full, nginx-extras
-Replaces: nginx-common, nginx-core, nginx-light, nginx-full, nginx-extras
+Conflicts: $nginx_conflicts
+Replaces: $nginx_conflicts
 Provides: nginx, nginx-common, httpd, httpd-cgi
 EOF
 
-    dpkg-deb -b "$deb_tmp_dir" "$deb_path"
+    find "$deb_tmp_dir/etc/nginx" -type d -exec chmod 0755 {} +
+    find "$deb_tmp_dir/etc/nginx" -type f -exec chmod 0644 {} +
+    chmod 0644 "$deb_tmp_dir/usr/lib/systemd/system/nginx.service" \
+        "$deb_tmp_dir/etc/logrotate.d/nginx"
+
+    dpkg-deb --root-owner-group -b "$deb_tmp_dir" "$deb_path"
     rm -rf "$deb_tmp_dir"
 }
 
@@ -137,7 +198,31 @@ EOF
 test -n "$NGINX_VERSION"
 UBUNTU_RELEASE="${UBUNTU_RELEASE:-$(. /etc/os-release && echo "$VERSION_ID")}"
 NGINX_BUILD_VERSION="10$NGINX_VERSION"
-NGINX_PACKAGE_RELEASE="1~ubuntu${UBUNTU_RELEASE}"
+NGINX_PACKAGE_VARIANT="${NGINX_PACKAGE_VARIANT:-default}"
+case "$NGINX_PACKAGE_VARIANT" in
+    default)
+        NGINX_PACKAGE_NAME="nginx"
+        NGINX_PACKAGE_RELEASE="1~ubuntu${UBUNTU_RELEASE}"
+        NGINX_REPO_COMPONENT="main"
+        ;;
+    oldcpu)
+        if [ "$(dpkg --print-architecture)" != "amd64" ]; then
+            echo "ERROR: the oldcpu variant can only be built for amd64" >&2
+            exit 1
+        fi
+        if [ -n "${NGINX_CC_OPT:-}" ]; then
+            echo "ERROR: the oldcpu variant must be built with an empty NGINX_CC_OPT" >&2
+            exit 1
+        fi
+        NGINX_PACKAGE_NAME="nginx"
+        NGINX_PACKAGE_RELEASE="1~ubuntu${UBUNTU_RELEASE}~oldcpu"
+        NGINX_REPO_COMPONENT="oldcpu"
+        ;;
+    *)
+        echo "ERROR: unsupported NGINX_PACKAGE_VARIANT: $NGINX_PACKAGE_VARIANT" >&2
+        exit 1
+        ;;
+esac
 # See https://nginx.org/en/download.html
 NGINX_URL="https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
 
@@ -152,7 +237,7 @@ apt build-dep --yes --install-recommends=no nginx
 
 # GET NGINX SOURCE
 
-curl -L "$NGINX_URL" -o nginx.tar.gz
+curl_retry -L "$NGINX_URL" -o nginx.tar.gz
 tar -xzf nginx.tar.gz
 test -d nginx && rm -fr nginx
 mv --no-target-directory nginx-"$NGINX_VERSION" nginx
@@ -177,12 +262,12 @@ python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin), sys.std
 
     if [ "$version_use_github_latest_release" == "true" ]; then
         owner_repo="$(echo "$url" | cut -d/ -f4,5)"
-        version=$(curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r ".tag_name")
+        version=$(curl_retry -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r ".tag_name")
     fi
 
     if [ "$version_use_github_latest_tag" == "true" ]; then
         owner_repo="$(echo "$url" | cut -d/ -f4,5)"
-        version=$(curl -s "https://api.github.com/repos/$owner_repo/tags?per_page=1" | jq -r ".[0].name")
+        version=$(curl_retry -s "https://api.github.com/repos/$owner_repo/tags?per_page=1" | jq -r ".[0].name")
     fi
 
     export version
@@ -194,7 +279,7 @@ python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin), sys.std
 
     # DOWNLOAD MODULES SOURCES
 
-    curl -L "$url" -o "$filename"
+    curl_retry -L "$url" -o "$filename"
     test -d "modules/$name" && rm -fr "modules/$name"
     mkdir -p "modules/$name"
     # auppack auto-detects archive type
@@ -273,6 +358,7 @@ find /etc/nginx/modules-enabled -type l >> checkinstall-files-to-add
 mkdir -p /var/lib/nginx/{body,fastcgi,proxy,scgi,uwsgi}
 find /var/lib/nginx -type d >> checkinstall-files-to-add
 echo /usr/share/nginx/modules >> checkinstall-files-to-add
+echo /etc/nginx/sites-enabled >> checkinstall-files-to-add
 
 ## BUILD
 
@@ -297,16 +383,21 @@ echo "Made using https://github.com/selivan/build-nginx-with-naxsi-for-ubuntu/" 
 echo "Added modules and versions:" >> description-pak
 cat ../nginx-modules-versions >> description-pak
 
-checkinstall --nodoc --deldesc --pkgname=nginx --maintainer=selivan@github --pkgversion=${NGINX_BUILD_VERSION} --pkgrelease=${NGINX_PACKAGE_RELEASE} --requires=${DEPENDENCIES} --include=../checkinstall-files-to-add -y
+checkinstall --nodoc --deldesc --pkgname="$NGINX_PACKAGE_NAME" --maintainer=selivan@github --pkgversion="$NGINX_BUILD_VERSION" --pkgrelease="$NGINX_PACKAGE_RELEASE" --requires="$DEPENDENCIES" --include=../checkinstall-files-to-add -y
 
-for deb in *.deb; do
+build_debs=(./*.deb)
+if [ ! -e "${build_debs[0]}" ]; then
+    echo "ERROR: checkinstall did not create a .deb package" >&2
+    exit 1
+fi
+for deb in "${build_debs[@]}"; do
     normalize_nginx_deb_control "$deb"
 done
 
-mkdir -p ../packages
-cp -f *.deb ../packages
+mkdir -p "$WORKSPACE_ROOT/packages"
+cp -f -- "${build_debs[@]}" "$WORKSPACE_ROOT/packages/"
+publish_debs_to_apt_pool "$NGINX_REPO_COMPONENT" "${build_debs[@]}"
 cd ..
-publish_debs_to_apt_pool packages/*.deb
 build_apt_repository
 
 echo "OK: build successful. Check packages and repo dirs"

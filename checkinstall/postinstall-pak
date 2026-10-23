@@ -11,6 +11,7 @@ case "$1" in
     fi
 
     logdir="/var/log/nginx"
+    mkdir -p "$logdir"
 
     # Allow local admin to override
     if ! dpkg-statoverride --list "$logdir" >/dev/null; then

@@ -1,13 +1,16 @@
 ARG BASE_IMAGE="ubuntu:24.04"
 FROM ${BASE_IMAGE}
 
+ARG http_proxy
+ARG https_proxy
+
 LABEL description="Image to build Ubuntu packages of Nginx with custom modules, like Naxsi WAF and GeoIP2(new MaxMind geoip data format)"
 LABEL maintainer="Pavel Selivanov(https://github.com/selivan)"
 
 ARG NGINX_VERSION="1.28.0"
 ENV NGINX_VERSION=${NGINX_VERSION}
 
-ARG NGINX_CC_OPT=""
+ARG NGINX_CC_OPT="-march=x86-64-v3"
 ENV NGINX_CC_OPT=${NGINX_CC_OPT}
 
 ARG NGINX_LTO_OPT="-flto=auto -ffat-lto-objects"
